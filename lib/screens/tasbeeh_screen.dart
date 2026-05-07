@@ -110,24 +110,56 @@ class _TasbeehScreenState extends State<TasbeehScreen>
                   width: double.infinity,
                   child: Column(
                     children: [
-                      Text(
-                        _dhikrs[_selDhikr].$1,
-                        textAlign: TextAlign.center,
-                        style: AppStyles.arabic(
-                          size: 28,
-                          color: AppColors.accent,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _dhikrs[_selDhikr].$2,
-                        textAlign: TextAlign.center,
-                        style: AppStyles.caption(
-                          size: 12,
-                          color: AppColors.textMuted,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.arrow_back_ios,
+                                color: AppColors.textSecondary),
+                            onPressed: () {
+                              setState(() {
+                                _selDhikr = (_selDhikr - 1 + _dhikrs.length) %
+                                    _dhikrs.length;
+                              });
+                            },
+                          ),
+                          Expanded(
+                            child: Column(
+                              children: [
+                                Text(
+                                  _dhikrs[_selDhikr].$1,
+                                  textAlign: TextAlign.center,
+                                  style: AppStyles.arabic(
+                                    size: 28,
+                                    color: AppColors.accent,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _dhikrs[_selDhikr].$2,
+                                  textAlign: TextAlign.center,
+                                  style: AppStyles.caption(
+                                    size: 12,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.arrow_forward_ios,
+                                color: AppColors.textSecondary),
+                            onPressed: () {
+                              setState(() {
+                                _selDhikr = (_selDhikr + 1) % _dhikrs.length;
+                              });
+                            },
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 14),
+
+                      // Keep the dots if you want both navigation options
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(

@@ -7,6 +7,7 @@ import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/animated_background.dart';
+import 'ai_search_screen.dart';
 import 'calender_screen.dart';
 import 'category_list_screen.dart';
 import 'surah_detail_screen.dart';
@@ -110,10 +111,13 @@ class _HomeScreenState extends State<HomeScreen> {
                               contentPadding:
                                   const EdgeInsets.symmetric(vertical: 12),
                             ),
-                            onSubmitted: (q) {
+                                                        onSubmitted: (q) {
                               if (q.trim().isNotEmpty) {
-                                _showSearchResults(
-                                    ds.search(q.trim()), q.trim());
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => AiSearchScreen(
+                                            initialQuery: q.trim())));
                               }
                             },
                           ),
