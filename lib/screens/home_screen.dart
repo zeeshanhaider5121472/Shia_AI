@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:provider/provider.dart';
 import '../models/data_models.dart';
 import '../services/data_service.dart';
+import '../services/location_service.dart';
+import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/animated_background.dart';
+import 'calender_screen.dart';
 import 'category_list_screen.dart';
 import 'surah_detail_screen.dart';
 import 'detail_screen.dart';
 import 'favorites_screen.dart';
 import 'tasbeeh_screen.dart';
+import 'hadith_list_screen.dart';
+import 'preferences_screen.dart';
+import 'qibla_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,26 +26,22 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _visible = false;
-  String _locationName = 'Tap to detect location';
-  bool _loadingLocation = false;
+  bool _hadithExpanded = false;
+  String? _cachedHadith;
 
-  // (key, label, icon)
   final _cats = <(String, String, IconData)>[
     ('favorites', 'Favorites', Icons.star_rounded),
     ('quran_chapters', 'Surahs', Icons.menu_book_rounded),
     ('duas', 'Duas', Icons.back_hand_rounded),
-    ('supplications', 'Supplications', Icons.volunteer_activism_rounded),
-    ('taqeebat', 'Taqeebat\ne Namaz', Icons.accessibility_new_rounded),
     ('namaz', 'Namaz', Icons.mosque_rounded),
-    ('ziyarats', 'Ziyarats', Icons.place_rounded),
-    ('aamaal', 'Aamaal', Icons.auto_stories_rounded),
-    ('calendar', 'Calendar\n& Times', Icons.calendar_month_rounded),
-    ('library', 'Library', Icons.local_library_rounded),
+    ('ziyarat', 'Ziyarats', Icons.place_rounded),
+    ('amal', 'Aamaal', Icons.auto_stories_rounded),
     ('munajaat', 'Munajaat', Icons.favorite_rounded),
-    ('baqeyaat', 'Baqeyaat as\nSaalehaat', Icons.bookmark_rounded),
+    ('hadiths', 'Hadiths', Icons.format_quote_rounded),
+    ('calendar', 'Calendar\n& Times', Icons.calendar_month_rounded),
     ('qibla', 'Qibla\nFinder', Icons.explore_rounded),
     ('tasbeeh', 'Tasbeeh\nCounter', Icons.radio_button_checked_rounded),
-    ('settings', 'Preferences', Icons.settings_rounded),
+    ('preferences', 'Preferences', Icons.settings_rounded),
   ];
 
   @override
@@ -52,51 +52,11 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // ── Location ──
-
-  Future<void> _getLocation() async {
-    setState(() => _loadingLocation = true);
-    try {
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        setState(() {
-          _locationName = 'Location permission denied';
-          _loadingLocation = false;
-        });
-        return;
-      }
-
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
-      );
-      final places = await placemarkFromCoordinates(pos.latitude, pos.longitude);
-      if (places.isNotEmpty) {
-        final p = places.first;
-        final name = [p.locality ?? p.subAdministrativeArea ?? '', p.country ?? '']
-            .where((s) => s.isNotEmpty)
-            .join(', ');
-        setState(() {
-          _locationName = name.isEmpty ? 'Location found' : name;
-          _loadingLocation = false;
-        });
-      }
-    } catch (_) {
-      setState(() {
-        _locationName = 'Unable to detect';
-        _loadingLocation = false;
-      });
-    }
-  }
-
-  // ── Build ──
-
   @override
   Widget build(BuildContext context) {
     final ds = context.watch<DataService>();
+    final ls = context.watch<LocationService>();
+    context.watch<SettingsService>();
 
     return GlassBackground(
       child: Scaffold(
@@ -105,7 +65,6 @@ class _HomeScreenState extends State<HomeScreen> {
           child: CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // ── Title ──
               SliverToBoxAdapter(
                 child: _fade(0, Padding(
                   padding: const EdgeInsets.only(top: 20, bottom: 4),
@@ -117,27 +76,24 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: AppColors.accent)),
                 )),
               ),
-
-              // ── Bismillah ──
               SliverToBoxAdapter(
                 child: _fade(0, Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Text(
                     '\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064E\u0647\u0650 \u0627\u0644\u0631\u0651\u064E\u062D\u0652\u0645\u0670\u0646\u0650 \u0627\u0644\u0631\u0651\u064E\u062D\u0650\u064A\u0652\u0645\u0650',
                     textAlign: TextAlign.center,
-                    style: AppStyles.arabic(size: 20, color: AppColors.textMuted),
+                    style: AppStyles.arabic(
+                        size: 20, color: AppColors.textMuted),
                   ),
                 )),
               ),
-
-              // ── Search ──
               SliverToBoxAdapter(
                 child: _fade(1, Padding(
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
                   child: GlassContainer(
                     borderRadius: 14,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 4),
                     child: Row(
                       children: [
                         Icon(Icons.search_rounded,
@@ -156,7 +112,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             onSubmitted: (q) {
                               if (q.trim().isNotEmpty) {
-                                _showSearchResults(ds.search(q.trim()), q.trim());
+                                _showSearchResults(
+                                    ds.search(q.trim()), q.trim());
                               }
                             },
                           ),
@@ -166,49 +123,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 )),
               ),
-
-              // ── Daily Hadith ──
               SliverToBoxAdapter(
                 child: _fade(2, Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-                  child: GlassContainer(
-                    borderRadius: 18,
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.format_quote_rounded,
-                                color: AppColors.accent, size: 18),
-                            const SizedBox(width: 8),
-                            Text('Daily Hadith',
-                                style: AppStyles.heading(
-                                    size: 14, color: AppColors.accent)),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(ds.getDailyHadith(),
-                            textAlign: TextAlign.center,
-                            style: AppStyles.body(
-                                size: 13.5,
-                                color: AppColors.textSecondary,
-                                height: 1.8)),
-                      ],
-                    ),
-                  ),
+                  child: _buildHadithCard(ds),
                 )),
               ),
-
-              // ── Prayer Times ──
               SliverToBoxAdapter(
                 child: _fade(3, Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-                  child: _buildPrayerTimes(),
+                  child: _buildPrayerTimes(ls),
                 )),
               ),
-
-              // ── Section title ──
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
@@ -217,12 +143,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: AppStyles.heading(size: 16)),
                 ),
               ),
-
-              // ── Grid ──
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
                 sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
                     childAspectRatio: 0.9,
                     crossAxisSpacing: 10,
@@ -234,7 +159,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-
               const SliverToBoxAdapter(child: SizedBox(height: 40)),
             ],
           ),
@@ -243,43 +167,100 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Staggered fade ──
   Widget _fade(int delay, Widget child) {
     return AnimatedOpacity(
       opacity: _visible ? 1.0 : 0.0,
-      duration: Duration(milliseconds: 500 + delay * 100),
+      duration: Duration(milliseconds: 400 + delay * 80),
       curve: Curves.easeOutCubic,
-      child: AnimatedSlide(
-        offset: _visible ? Offset.zero : const Offset(0, 0.08),
-        duration: Duration(milliseconds: 500 + delay * 100),
-        curve: Curves.easeOutCubic,
-        child: child,
+      child: child,
+    );
+  }
+
+  // ── CACHED hadith — same text on expand/collapse ──
+  Widget _buildHadithCard(DataService ds) {
+    _cachedHadith ??= ds.getDailyHadith();
+    final text = _cachedHadith!;
+    final isLong = text.length > 180;
+
+    return GlassContainer(
+      borderRadius: 18,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.format_quote_rounded,
+                  color: AppColors.accent, size: 18),
+              const SizedBox(width: 8),
+              Text('Daily Hadith',
+                  style: AppStyles.heading(
+                      size: 14, color: AppColors.accent)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            alignment: Alignment.topCenter,
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              maxLines: _hadithExpanded ? null : 3,
+              overflow: _hadithExpanded ? null : TextOverflow.ellipsis,
+              style: AppStyles.body(
+                  size: 13.5,
+                  color: AppColors.textSecondary,
+                  height: 1.8),
+            ),
+          ),
+          if (isLong)
+            GestureDetector(
+              onTap: () =>
+                  setState(() => _hadithExpanded = !_hadithExpanded),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Icon(
+                  _hadithExpanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.accent,
+                  size: 24,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  // ── Prayer Times ──
-  Widget _buildPrayerTimes() {
-    const times = [
-      ('Fajr', '5:12'),
-      ('Sunrise', '6:34'),
-      ('Dhuhr', '12:15'),
-      ('Asr', '3:45'),
-      ('Maghrib', '6:58'),
-      ('Isha', '8:20'),
-    ];
+  // ── PRAYER TIMES — uses LocationService API ──
+  Widget _buildPrayerTimes(LocationService ls) {
+    final times = ls.prayerTimes.isNotEmpty
+        ? ls.prayerTimes.entries
+            .map((e) => (e.key, e.value))
+            .toList()
+        : [
+            ('Fajr', '--:--'),
+            ('Sunrise', '--:--'),
+            ('Dhuhr', '--:--'),
+            ('Asr', '--:--'),
+            ('Maghrib', '--:--'),
+            ('Isha', '--:--'),
+          ];
 
     return GlassContainer(
       borderRadius: 18,
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
+          // Location row
           GestureDetector(
-            onTap: _getLocation,
+            onTap: () => ls.detectLocation(),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (_loadingLocation)
+                if (ls.loading)
                   const SizedBox(
                     width: 14,
                     height: 14,
@@ -289,21 +270,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 else
                   Icon(Icons.location_on_rounded,
                       color: AppColors.accent, size: 16),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(_locationName,
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppStyles.caption(
-                          size: 12, color: AppColors.textSecondary)),
-                ),
+                if (ls.cityName.isNotEmpty) ...[
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(ls.cityName,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppStyles.caption(
+                            size: 10, color: AppColors.textMuted)),
+                  ),
+                ] else if (ls.error.isNotEmpty) ...[
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(ls.error,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppStyles.caption(
+                            size: 10,
+                            color: const Color(0xFFF87171))),
+                  ),
+                ],
                 const SizedBox(width: 4),
                 Icon(Icons.refresh_rounded,
-                    color: AppColors.textMuted, size: 14),
+                    color: AppColors.textMuted, size: 13),
               ],
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -311,8 +302,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: AppColors.accent, size: 15),
               const SizedBox(width: 6),
               Text('Prayer Times',
-                  style:
-                      AppStyles.heading(size: 13, color: AppColors.accent)),
+                  style: AppStyles.heading(
+                      size: 13, color: AppColors.accent)),
             ],
           ),
           const SizedBox(height: 14),
@@ -323,10 +314,12 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: times
                   .map((t) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 12),
                         child: Column(
                           children: [
-                            Text(t.$1, style: AppStyles.caption(size: 10)),
+                            Text(t.$1,
+                                style: AppStyles.caption(size: 10)),
                             const SizedBox(height: 4),
                             Text(t.$2,
                                 style: AppStyles.heading(
@@ -342,49 +335,42 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Grid item ──
   Widget _buildGridItem(int index) {
     final c = _cats[index];
     return AnimatedOpacity(
       opacity: _visible ? 1.0 : 0.0,
-      duration: Duration(milliseconds: 400 + index * 45),
+      duration: Duration(milliseconds: 350 + index * 40),
       curve: Curves.easeOutCubic,
-      child: AnimatedSlide(
-        offset: _visible ? Offset.zero : const Offset(0, 0.25),
-        duration: Duration(milliseconds: 400 + index * 45),
-        curve: Curves.easeOutCubic,
-        child: GlassContainer(
-          borderRadius: 18,
-          padding: const EdgeInsets.all(10),
-          onTap: () => _onTap(c.$1, c.$2),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(11),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(c.$3, color: AppColors.accent, size: 24),
+      child: GlassContainer(
+        borderRadius: 18,
+        padding: const EdgeInsets.all(10),
+        onTap: () => _onTap(c.$1, c.$2),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(
+                color: AppColors.accent.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(height: 10),
-              Text(c.$2,
-                  textAlign: TextAlign.center,
-                  style: AppStyles.body(
-                      size: 10.5,
-                      weight: FontWeight.w600,
-                      color: AppColors.textPrimary),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis),
-            ],
-          ),
+              child: Icon(c.$3, color: AppColors.accent, size: 24),
+            ),
+            const SizedBox(height: 10),
+            Text(c.$2,
+                textAlign: TextAlign.center,
+                style: AppStyles.body(
+                    size: 10.5,
+                    weight: FontWeight.w600,
+                    color: AppColors.textPrimary),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis),
+          ],
         ),
       ),
     );
   }
 
-  // ── Navigation ──
   void _onTap(String key, String title) {
     final ds = context.read<DataService>();
 
@@ -397,40 +383,76 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => const TasbeehScreen()));
         break;
-      case 'qibla':
-      case 'settings':
+      case 'hadiths':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const HadithListScreen()));
+        break;
+      case 'preferences':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const PreferencesScreen()));
+        break;
       case 'calendar':
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('$title — Coming Soon',
-              style: AppStyles.body(size: 13)),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.surface,
-        ));
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const CalendarScreen()));
+        break;
+      case 'qibla':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const QiblaScreen()));
         break;
       case 'quran_chapters':
-        // Surahs: only from prayers (detail screen has 2 tabs)
-        final items = ds.getCategory('prayers', 'quran_chapters');
         Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (_) =>
-                    CategoryListScreen(title: title, items: items)));
+                builder: (_) => CategoryListScreen(
+                    title: title,
+                    items: ds.getCategory('prayers', 'quran_chapters'))));
         break;
-      default:
-        // All other categories: merged across all sections
-        final items = ds.getMergedItems([key]);
+      case 'namaz':
         Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (_) =>
-                    CategoryListScreen(title: title, items: items)));
+                builder: (_) => CategoryListScreen(
+                    title: title,
+                    items: ds.getCategory('prayers', 'namaz'))));
+        break;
+      case 'duas':
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => CategoryListScreen(
+                    title: title,
+                    items: ds.getMergedItems(['duas', 'taweez']))));
+        break;
+      case 'ziyarat':
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => CategoryListScreen(
+                    title: title,
+                    items: ds.getMergedItems(['ziyarat']))));
+        break;
+      case 'amal':
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => CategoryListScreen(
+                    title: title,
+                    items: ds.getMergedItems(
+                        ['amal', 'special_prayers']))));
+        break;
+      case 'munajaat':
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => CategoryListScreen(
+                    title: title,
+                    items: ds.getMergedItems(
+                        ['munajaat', 'supplications']))));
+        break;
     }
   }
 
-  // ── Search results bottom sheet ──
   void _showSearchResults(List<SurahModel> results, String query) {
-    final ds = context.read<DataService>();
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -481,7 +503,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         )
                       : ListView.builder(
                           controller: scrollCtrl,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 16),
                           itemCount: results.length,
                           itemBuilder: (ctx, i) {
                             final item = results[i];
@@ -493,11 +516,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                     horizontal: 18, vertical: 14),
                                 onTap: () {
                                   Navigator.pop(ctx);
-                                  _openItem(item, ds);
+                                  _openItem(item);
                                 },
                                 child: Column(
                                   children: [
-                                    // Source badge
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 8, vertical: 2),
@@ -523,8 +545,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                               size: 20,
                                               color: AppColors.accent)),
                                     ],
-                                    Text(
-                                        item.englishTitle ?? item.title,
+                                    Text(item.englishTitle ?? item.title,
                                         textAlign: TextAlign.center,
                                         style: AppStyles.body(
                                             size: 14,
@@ -544,23 +565,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Opens the correct detail screen based on item category.
-  void _openItem(SurahModel item, DataService ds) {
+  void _openItem(SurahModel item) {
+    final ds = context.read<DataService>();
     if (item.category == 'quran_chapters') {
-      final qItem = ds.getItem('quranzikr', 'quran_verses', item.id);
+      final qItem = ds.getItem('quranzikr', 'quran verses', item.id);
       Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (_) =>
-                  SurahDetailScreen(prayersItem: item, quranItem: qItem)));
-    } else if (item.category == 'quran_verses') {
+              builder: (_) => SurahDetailScreen(
+                  prayersItem: item, quranItem: qItem)));
+    } else if (item.category == 'quran verses') {
       final pItem = ds.getItem('prayers', 'quran_chapters', item.id);
       if (pItem != null) {
         Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (_) =>
-                    SurahDetailScreen(prayersItem: pItem, quranItem: item)));
+                builder: (_) => SurahDetailScreen(
+                    prayersItem: pItem, quranItem: item)));
       } else {
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => DetailScreen(item: item)));

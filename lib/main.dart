@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'services/data_service.dart';
 import 'services/favorites_service.dart';
+import 'services/settings_service.dart';
+import 'services/location_service.dart';
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
 
@@ -16,6 +18,9 @@ void main() async {
   final favService = FavoritesService();
   await favService.init();
 
+  final settingsService = SettingsService();
+  await settingsService.init();
+
   final dataService = DataService();
   await dataService.loadData();
 
@@ -23,6 +28,8 @@ void main() async {
     providers: [
       ChangeNotifierProvider.value(value: dataService),
       ChangeNotifierProvider.value(value: favService),
+      ChangeNotifierProvider.value(value: settingsService),
+      ChangeNotifierProvider(create: (_) => LocationService()),
     ],
     child: const ShiaAIApp(),
   ));
@@ -33,11 +40,22 @@ class ShiaAIApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Shia AI',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.theme,
-      home: const HomeScreen(),
+    return Consumer<SettingsService>(
+      builder: (ctx, settings, _) {
+        AppColors.isDark = settings.isDark;
+        AppStyles.fontScale = settings.fontScale;
+        AppStyles.fontFamily = settings.fontFamily;
+        AppStyles.arabicFontFamily = settings.arabicFontFamily;
+
+        return MaterialApp(
+          title: 'Shia AI',
+          debugShowCheckedModeBanner: false,
+          themeMode: settings.themeMode,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          home: const HomeScreen(),
+        );
+      },
     );
   }
 }

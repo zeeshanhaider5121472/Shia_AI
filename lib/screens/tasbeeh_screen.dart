@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../theme/app_theme.dart';
-import '../widgets/glass_container.dart';
 import '../widgets/animated_background.dart';
+import '../widgets/glass_container.dart';
 
 class TasbeehScreen extends StatefulWidget {
   const TasbeehScreen({super.key});
@@ -21,12 +22,30 @@ class _TasbeehScreenState extends State<TasbeehScreen>
   late Animation<double> _pulseAnim;
 
   final _dhikrs = [
-    ('\u0633\u064F\u0628\u0652\u062D\u064E\u0627\u0646\u064E \u0627\u0644\u0644\u0651\u0670\u0647\u0650', 'SubhanAllah'),
-    ('\u0627\u064E\u0644\u0652\u062D\u064E\u0645\u0652\u062F\u064F \u0644\u0650\u0644\u0651\u0670\u0647\u0650', 'Alhamdulillah'),
-    ('\u0627\u064E\u0644\u0644\u0651\u0670\u0647\u064F \u0627\u064E\u0643\u0652\u0628\u064E\u0631\u064F', 'Allahu Akbar'),
-    ('\u0644\u0627 \u0627\u0650\u0644\u0670\u0647\u064E \u0627\u0650\u0644\u0651\u064E\u0627 \u0627\u0644\u0644\u0651\u0670\u0647\u064F', 'La Ilaha IllAllah'),
-    ('\u0627\u064E\u0633\u0652\u062A\u064E\u063A\u0652\u0641\u0650\u0631\u064F \u0627\u0644\u0644\u0651\u0670\u0647\u064E', 'Astaghfirullah'),
-    ('\u0644\u0627 \u062D\u064E\u0648\u0652\u0644\u064E \u0648\u064E\u0644\u0627 \u0642\u064F\u0648\u0651\u064E\u0629\u064E \u0627\u0650\u0644\u0651\u064E\u0627 \u0628\u0650\u0627\u0644\u0644\u0651\u0670\u0647\u0650', 'La Hawla Wala Quwwata'),
+    (
+      '\u0633\u064F\u0628\u0652\u062D\u064E\u0627\u0646\u064E \u0627\u0644\u0644\u0651\u0670\u0647\u0650',
+      'SubhanAllah'
+    ),
+    (
+      '\u0627\u064E\u0644\u0652\u062D\u064E\u0645\u0652\u062F\u064F \u0644\u0650\u0644\u0651\u0670\u0647\u0650',
+      'Alhamdulillah'
+    ),
+    (
+      '\u0627\u064E\u0644\u0644\u0651\u0670\u0647\u064F \u0627\u064E\u0643\u0652\u0628\u064E\u0631\u064F',
+      'Allahu Akbar'
+    ),
+    (
+      '\u0644\u0627 \u0627\u0650\u0644\u0670\u0647\u064E \u0627\u0650\u0644\u0651\u064E\u0627 \u0627\u0644\u0644\u0651\u0670\u0647\u064F',
+      'La Ilaha IllAllah'
+    ),
+    (
+      '\u0627\u064E\u0633\u0652\u062A\u064E\u063A\u0652\u0641\u0650\u0631\u064F \u0627\u0644\u0644\u0651\u0670\u0647\u064E',
+      'Astaghfirullah'
+    ),
+    (
+      '\u0644\u0627 \u062D\u064E\u0648\u0652\u0644\u064E \u0648\u064E\u0644\u0627 \u0642\u064F\u0648\u0651\u064E\u0629\u064E \u0627\u0650\u0644\u0651\u064E\u0627 \u0628\u0650\u0627\u0644\u0644\u0651\u0670\u0647\u0650',
+      'La Hawla Wala Quwwata'
+    ),
   ];
   int _selDhikr = 0;
 
@@ -74,8 +93,7 @@ class _TasbeehScreenState extends State<TasbeehScreen>
                 _count = 0;
                 _total = 0;
               }),
-              icon: const Icon(Icons.refresh_rounded,
-                  color: AppColors.textSecondary),
+              icon: Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -87,8 +105,8 @@ class _TasbeehScreenState extends State<TasbeehScreen>
                 // ── Dhikr Selector ──
                 GlassContainer(
                   borderRadius: 18,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 18),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                   width: double.infinity,
                   child: Column(
                     children: [
@@ -118,8 +136,7 @@ class _TasbeehScreenState extends State<TasbeehScreen>
                             onTap: () => setState(() => _selDhikr = i),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 250),
-                              margin:
-                                  const EdgeInsets.symmetric(horizontal: 4),
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
                               width: i == _selDhikr ? 18 : 7,
                               height: 7,
                               decoration: BoxDecoration(
@@ -147,7 +164,6 @@ class _TasbeehScreenState extends State<TasbeehScreen>
                       borderRadius: 110,
                       width: 200,
                       height: 200,
-                      blur: 16,
                       padding: EdgeInsets.zero,
                       child: Center(
                         child: Column(
@@ -220,8 +236,7 @@ class _TasbeehScreenState extends State<TasbeehScreen>
                       ),
                     ),
                     ...[33, 34, 99, 100].map((t) => Padding(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: GestureDetector(
                             onTap: () => setState(() {
                               _target = t;
@@ -261,8 +276,8 @@ class _TasbeehScreenState extends State<TasbeehScreen>
                 Text(
                   'Tap the circle to count',
                   textAlign: TextAlign.center,
-                  style: AppStyles.caption(
-                      size: 12, color: AppColors.textMuted),
+                  style:
+                      AppStyles.caption(size: 12, color: AppColors.textMuted),
                 ),
               ],
             ),
