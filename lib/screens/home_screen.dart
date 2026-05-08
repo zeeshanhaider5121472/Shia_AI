@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -481,7 +483,7 @@ class _GalaxySearchBarState extends State<_GalaxySearchBar>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
-    )..repeat(reverse: true);
+    )..repeat();
     _focusNode.addListener(() => setState(() {}));
   }
 
@@ -494,65 +496,180 @@ class _GalaxySearchBarState extends State<_GalaxySearchBar>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (ctx, _) {
-        final glow = _focusNode.hasFocus ? 0.25 : 0.06 + _ctrl.value * 0.09;
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.glass,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _focusNode.hasFocus
+              ? AppColors.accent.withOpacity(0.3)
+              : AppColors.glassBorder,
+        ),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 10),
+          AnimatedBuilder(
+            animation: _ctrl,
+            builder: (ctx, _) {
+              final dy = sin(_ctrl.value * 2 * pi) * 1.5;
+              final tilt = sin(_ctrl.value * 4 * pi) * 0.08;
+              final glow = _focusNode.hasFocus
+                  ? 0.6 + sin(_ctrl.value * 2 * pi) * 0.2
+                  : 0.3 + sin(_ctrl.value * 2 * pi) * 0.15;
 
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.accent.withOpacity(glow),
-                blurRadius: 18,
-                spreadRadius: -2,
-              ),
-            ],
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.glass,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: _focusNode.hasFocus
-                    ? AppColors.accent.withOpacity(0.3)
-                    : AppColors.glassBorder,
-              ),
-            ),
-            child: Row(
-              children: [
-                const SizedBox(width: 16),
-                Icon(Icons.search_rounded,
-                    color: AppColors.textMuted, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    focusNode: _focusNode,
-                    style: AppStyles.body(size: 14),
-                    decoration: InputDecoration(
-                      hintText: 'Chat with Shia AI...',
-                      hintStyle: AppStyles.body(color: AppColors.textMuted),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              return Transform.translate(
+                offset: Offset(0, dy),
+                child: Transform.rotate(
+                  angle: tilt,
+                  child: CustomPaint(
+                    size: const Size(28, 28),
+                    painter: _RobotPainter(
+                      color: AppColors.accent,
+                      glow: glow,
+                      focused: _focusNode.hasFocus,
                     ),
-                    onSubmitted: widget.onSubmitted,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 14),
-                  child: Icon(
-                    Icons.auto_awesome_rounded,
-                    color:
-                        AppColors.accent.withOpacity(0.4 + _ctrl.value * 0.4),
-                    size: 18,
-                  ),
-                ),
-              ],
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              focusNode: _focusNode,
+              style: AppStyles.body(size: 14),
+              decoration: InputDecoration(
+                hintText: 'Chat with Shia AI...',
+                hintStyle: AppStyles.body(color: AppColors.textMuted),
+                border: InputBorder.none,
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onSubmitted: widget.onSubmitted,
             ),
           ),
-        );
-      },
+          Padding(
+            padding: const EdgeInsets.only(right: 14),
+            child: Icon(
+              Icons.auto_awesome_rounded,
+              color: AppColors.accent.withOpacity(0.5),
+              size: 18,
+            ),
+          ),
+        ],
+      ),
     );
   }
+}
+
+// ═══════════════════════════════════════════
+//  CUTE NEON ROBOT PAINTER
+// ═══════════════════════════════════════════
+
+class _RobotPainter extends CustomPainter {
+  final Color color;
+  final double glow;
+  final bool focused;
+
+  _RobotPainter({
+    required this.color,
+    required this.glow,
+    required this.focused,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2 + 1;
+    final headR = size.width * 0.36;
+
+    // ── Glow aura ──
+    canvas.drawCircle(
+      Offset(cx, cy),
+      headR + 5,
+      Paint()
+        ..color = color.withOpacity(glow * 0.35)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+
+    // ── Antenna stem ──
+    canvas.drawLine(
+      Offset(cx, cy - headR + 1),
+      Offset(cx, cy - headR - 4),
+      Paint()
+        ..color = color
+        ..strokeWidth = 1.5
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // ── Antenna ball ──
+    canvas.drawCircle(
+      Offset(cx, cy - headR - 5.5),
+      focused ? 2.8 : 2.2,
+      Paint()..color = color,
+    );
+
+    // ── Ear bolts ──
+    canvas.drawCircle(
+        Offset(cx - headR - 1, cy - 1), 1.5, Paint()..color = color);
+    canvas.drawCircle(
+        Offset(cx + headR + 1, cy - 1), 1.5, Paint()..color = color);
+
+    // ── Head outline ──
+    canvas.drawCircle(
+      Offset(cx, cy),
+      headR,
+      Paint()..color = color.withOpacity(0.06),
+    );
+    canvas.drawCircle(
+      Offset(cx, cy),
+      headR,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8
+        ..color = color,
+    );
+
+    // ── Eyes ──
+    final eyeY = cy - 1.5;
+    final eyeX = headR * 0.4;
+    final eyeR = focused ? 2.8 : 2.2;
+
+    // Eye glow
+    canvas.drawCircle(Offset(cx - eyeX, eyeY), eyeR + 2,
+        Paint()..color = color.withOpacity(glow * 0.25));
+    canvas.drawCircle(Offset(cx + eyeX, eyeY), eyeR + 2,
+        Paint()..color = color.withOpacity(glow * 0.25));
+
+    // Eye dots
+    canvas.drawCircle(
+        Offset(cx - eyeX, eyeY), eyeR, Paint()..color = color);
+    canvas.drawCircle(
+        Offset(cx + eyeX, eyeY), eyeR, Paint()..color = color);
+
+    // ── Smile ──
+    final smileW = headR * 0.55;
+    final smileH = headR * 0.35;
+    final smileRect = Rect.fromCenter(
+      center: Offset(cx, cy + 3.5),
+      width: smileW,
+      height: smileH,
+    );
+    canvas.drawArc(
+      smileRect,
+      0.15,
+      0.9,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.3
+        ..color = color
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RobotPainter old) =>
+      old.glow != glow || old.focused != focused;
 }
