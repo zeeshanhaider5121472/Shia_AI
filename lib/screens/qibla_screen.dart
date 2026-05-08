@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_compass/flutter_compass.dart';
 import 'package:provider/provider.dart';
 import '../services/location_service.dart';
 import '../theme/app_theme.dart';
@@ -14,6 +15,9 @@ class QiblaScreen extends StatefulWidget {
 }
 
 class _QiblaScreenState extends State<QiblaScreen> {
+  double _heading = 0;
+  bool _compassAvailable = true;
+
   @override
   void initState() {
     super.initState();
@@ -23,14 +27,31 @@ class _QiblaScreenState extends State<QiblaScreen> {
         ls.detectLocation();
       }
     });
+    _initCompass();
+  }
+
+  void _initCompass() async {
+    try {
+      final stream = FlutterCompass.events;
+      if (stream == null) {
+        if (mounted) setState(() => _compassAvailable = false);
+        return;
+      }
+      stream.listen((event) {
+        if (mounted && event.heading != null) {
+          setState(() => _heading = event.heading!);
+        }
+      });
+    } catch (e) {
+      debugPrint('Compass not available: $e');
+      if (mounted) setState(() => _compassAvailable = false);
+    }
   }
 
   String _directionName(double deg) {
     const names = [
-      'N', 'NNE', 'NE', 'ENE',
-      'E', 'ESE', 'SE', 'SSE',
-      'S', 'SSW', 'SW', 'WSW',
-      'W', 'WNW', 'NW', 'NNW',
+      'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+      'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW',
     ];
     return names[((deg + 11.25) / 22.5).floor() % 16];
   }
@@ -38,7 +59,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
   String _formatDist(double km) {
     if (km < 1) return '${(km * 1000).toStringAsFixed(0)} m';
     if (km < 100) return '${km.toStringAsFixed(1)} km';
-    return '${km.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')} km';
+    return '${km.toStringAsFixed(0)} km';
   }
 
   @override
@@ -84,29 +105,29 @@ class _QiblaScreenState extends State<QiblaScreen> {
               size: 72, color: AppColors.textMuted),
           const SizedBox(height: 20),
           Text('Location Required',
-              textAlign: TextAlign.center,
               style: AppStyles.heading(size: 20)),
           const SizedBox(height: 8),
           Text(
             'Allow location access to determine the Qibla direction from your position.',
             textAlign: TextAlign.center,
             style: AppStyles.body(
-                size: 14, color: AppColors.textSecondary, height: 1.7),
+                size: 14,
+                color: AppColors.textSecondary,
+                height: 1.7),
           ),
           if (ls.error.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(ls.error,
                 textAlign: TextAlign.center,
                 style: AppStyles.body(
-                    size: 13,
-                    color: const Color(0xFFF87171))),
+                    size: 13, color: const Color(0xFFF87171))),
           ],
           const SizedBox(height: 28),
           GestureDetector(
             onTap: ls.detectLocation,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 32, vertical: 14),
               decoration: BoxDecoration(
                 color: AppColors.accent,
                 borderRadius: BorderRadius.circular(14),
@@ -132,11 +153,10 @@ class _QiblaScreenState extends State<QiblaScreen> {
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          // ── Info card ──
           GlassContainer(
             borderRadius: 20,
-            padding:
-                const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+            padding: const EdgeInsets.symmetric(
+                vertical: 24, horizontal: 20),
             child: Column(
               children: [
                 Text('Qibla Direction',
@@ -162,7 +182,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
 
           const SizedBox(height: 32),
 
-          // ── Compass ──
+          // ── Live compass ──
           TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: 1),
             duration: const Duration(milliseconds: 900),
@@ -171,33 +191,53 @@ class _QiblaScreenState extends State<QiblaScreen> {
               return Opacity(
                 opacity: val,
                 child: Transform.scale(
-                  scale: 0.85 + 0.15 * val,
-                  child: child,
-                ),
+                    scale: 0.85 + 0.15 * val, child: child),
               );
             },
             child: SizedBox(
               width: 300,
               height: 300,
-              child: CustomPaint(
-                painter: CompassPainter(
-                  qiblaDirection: qibla,
-                  accentColor: AppColors.accent,
-                  textColor: AppColors.textPrimary,
-                  secondaryColor: AppColors.textSecondary,
-                  mutedColor: AppColors.textMuted,
-                ),
-              ),
+              child: _compassAvailable
+                  ? Transform.rotate(
+                      angle: -_heading * pi / 180,
+                      child: CustomPaint(
+                        painter: CompassPainter(
+                          qiblaDirection: qibla,
+                          accentColor: AppColors.accent,
+                          textColor: AppColors.textPrimary,
+                          secondaryColor: AppColors.textSecondary,
+                          mutedColor: AppColors.textMuted,
+                        ),
+                      ),
+                    )
+                  : CustomPaint(
+                      painter: CompassPainter(
+                        qiblaDirection: qibla,
+                        accentColor: AppColors.accent,
+                        textColor: AppColors.textPrimary,
+                        secondaryColor: AppColors.textSecondary,
+                        mutedColor: AppColors.textMuted,
+                      ),
+                    ),
             ),
           ),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
 
-          // ── Instruction ──
+          if (_compassAvailable)
+            Text(
+              'Heading: ${_heading.toStringAsFixed(0)}\u00B0 '
+              '${_directionName(_heading)}',
+              style: AppStyles.caption(
+                  size: 12, color: AppColors.textMuted),
+            ),
+
+          const SizedBox(height: 16),
+
           GlassContainer(
             borderRadius: 14,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 20, vertical: 14),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
@@ -207,7 +247,9 @@ class _QiblaScreenState extends State<QiblaScreen> {
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
-                    'Rotate your device so the arrow points upward, then face that direction.',
+                    _compassAvailable
+                        ? 'Hold your phone flat. The compass rotates with your device so the Kaaba icon always points to Mecca.'
+                        : 'Compass sensor not available. The arrow shows Qibla direction from north.',
                     textAlign: TextAlign.center,
                     style: AppStyles.body(
                         size: 12.5,
@@ -252,25 +294,27 @@ class CompassPainter extends CustomPainter {
     final center = Offset(cx, cy);
     final radius = min(cx, cy) - 20;
 
-    // ── Outer ring ──
+    // Outer ring
     canvas.drawCircle(
-      center, radius,
+      center,
+      radius,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2
         ..color = mutedColor.withOpacity(0.35),
     );
 
-    // ── Inner ring ──
+    // Inner ring
     canvas.drawCircle(
-      center, radius - 28,
+      center,
+      radius - 28,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 0.5
         ..color = mutedColor.withOpacity(0.15),
     );
 
-    // ── Tick marks ──
+    // Tick marks
     for (int deg = 0; deg < 360; deg += 2) {
       final isMajor = deg % 30 == 0;
       final isMedium = deg % 10 == 0;
@@ -292,28 +336,19 @@ class CompassPainter extends CustomPainter {
       );
     }
 
-    // ── Degree numbers (every 30°, skip cardinals) ──
+    // Degree numbers
     for (int deg = 0; deg < 360; deg += 30) {
       if (deg % 90 == 0) continue;
       final rad = (deg - 90) * pi / 180;
       final r = radius - 38;
-      _text(canvas, '$deg',
+      _text(
+          canvas,
+          '$deg',
           Offset(cx + r * cos(rad), cy + r * sin(rad)),
           TextStyle(color: mutedColor, fontSize: 10));
     }
 
-    // ── Intercardinal dots ──
-    for (final deg in [45, 135, 225, 315]) {
-      final rad = (deg - 90) * pi / 180;
-      final r = radius - 38;
-      canvas.drawCircle(
-        Offset(cx + r * cos(rad), cy + r * sin(rad)),
-        2,
-        Paint()..color = mutedColor.withOpacity(0.4),
-      );
-    }
-
-    // ── Cardinal labels ──
+    // Cardinal labels
     final cardinals = [
       ('N', 0, true),
       ('E', 90, false),
@@ -324,7 +359,8 @@ class CompassPainter extends CustomPainter {
       final rad = (deg - 90) * pi / 180;
       final r = radius - 38;
       _text(
-        canvas, label,
+        canvas,
+        label,
         Offset(cx + r * cos(rad), cy + r * sin(rad)),
         TextStyle(
           color: isNorth ? const Color(0xFFEF4444) : secondaryColor,
@@ -334,7 +370,7 @@ class CompassPainter extends CustomPainter {
       );
     }
 
-    // ── Qibla arrow ──
+    // Qibla arrow
     final qRad = (qiblaDirection - 90) * pi / 180;
     final arrowLen = radius - 55;
     final arrowEnd = Offset(
@@ -344,7 +380,8 @@ class CompassPainter extends CustomPainter {
 
     // Glow
     canvas.drawLine(
-      center, arrowEnd,
+      center,
+      arrowEnd,
       Paint()
         ..color = accentColor.withOpacity(0.15)
         ..strokeWidth = 12
@@ -354,7 +391,8 @@ class CompassPainter extends CustomPainter {
 
     // Line
     canvas.drawLine(
-      center, arrowEnd,
+      center,
+      arrowEnd,
       Paint()
         ..color = accentColor
         ..strokeWidth = 2.5
@@ -391,11 +429,12 @@ class CompassPainter extends CustomPainter {
       Paint()..color = accentColor,
     );
 
-    // ── Center dot ──
+    // Center dot
     canvas.drawCircle(center, 4, Paint()..color = accentColor);
   }
 
-  void _text(Canvas canvas, String text, Offset center, TextStyle style) {
+  void _text(
+      Canvas canvas, String text, Offset center, TextStyle style) {
     final tp = TextPainter(
       text: TextSpan(text: text, style: style),
       textDirection: TextDirection.ltr,

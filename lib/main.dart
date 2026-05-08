@@ -21,6 +21,9 @@ void main() async {
   final settingsService = SettingsService();
   await settingsService.init();
 
+  final locationService = LocationService();
+  await locationService.init();
+
   final dataService = DataService();
   await dataService.loadData();
 
@@ -29,7 +32,7 @@ void main() async {
       ChangeNotifierProvider.value(value: dataService),
       ChangeNotifierProvider.value(value: favService),
       ChangeNotifierProvider.value(value: settingsService),
-      ChangeNotifierProvider(create: (_) => LocationService()),
+      ChangeNotifierProvider.value(value: locationService),
     ],
     child: const ShiaAIApp(),
   ));

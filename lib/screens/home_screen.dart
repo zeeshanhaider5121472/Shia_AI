@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/data_models.dart';
+
 import '../services/data_service.dart';
 import '../services/location_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/glass_container.dart';
 import '../widgets/animated_background.dart';
+import '../widgets/glass_container.dart';
 import 'ai_search_screen.dart';
 import 'calender_screen.dart';
 import 'category_list_screen.dart';
-import 'surah_detail_screen.dart';
-import 'detail_screen.dart';
 import 'favorites_screen.dart';
-import 'tasbeeh_screen.dart';
 import 'hadith_list_screen.dart';
 import 'preferences_screen.dart';
 import 'qibla_screen.dart';
+import 'tasbeeh_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -51,6 +49,13 @@ class _HomeScreenState extends State<HomeScreen> {
     Future.delayed(const Duration(milliseconds: 150), () {
       if (mounted) setState(() => _visible = true);
     });
+    // Auto-detect location on first open
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ls = context.read<LocationService>();
+      if (!ls.hasLocation && !ls.loading) {
+        ls.detectLocation();
+      }
+    });
   }
 
   @override
@@ -66,78 +71,93 @@ class _HomeScreenState extends State<HomeScreen> {
           child: CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
+              // ── Title with font icon ──
               SliverToBoxAdapter(
-                child: _fade(0, Padding(
-                  padding: const EdgeInsets.only(top: 20, bottom: 4),
-                  child: Text('Shia AI',
-                      textAlign: TextAlign.center,
-                      style: AppStyles.heading(
-                          size: 26,
-                          weight: FontWeight.w800,
-                          color: AppColors.accent)),
-                )),
-              ),
-              SliverToBoxAdapter(
-                child: _fade(0, Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Text(
-                    '\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064E\u0647\u0650 \u0627\u0644\u0631\u0651\u064E\u062D\u0652\u0645\u0670\u0646\u0650 \u0627\u0644\u0631\u0651\u064E\u062D\u0650\u064A\u0652\u0645\u0650',
-                    textAlign: TextAlign.center,
-                    style: AppStyles.arabic(
-                        size: 20, color: AppColors.textMuted),
-                  ),
-                )),
-              ),
-              SliverToBoxAdapter(
-                child: _fade(1, Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
-                  child: GlassContainer(
-                    borderRadius: 14,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 4),
-                    child: Row(
-                      children: [
-                        Icon(Icons.search_rounded,
-                            color: AppColors.textMuted, size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            style: AppStyles.body(size: 14),
-                            decoration: InputDecoration(
-                              hintText: 'Search surahs, duas, prayers...',
-                              hintStyle:
-                                  AppStyles.body(color: AppColors.textMuted),
-                              border: InputBorder.none,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 12),
+                child: _fade(
+                    0,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 20, bottom: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Shia AI',
+                              textAlign: TextAlign.center,
+                              style: AppStyles.heading(
+                                  size: 26,
+                                  weight: FontWeight.w800,
+                                  color: AppColors.accent)),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const PreferencesScreen())),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppColors.accent.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(Icons.text_fields_rounded,
+                                  color: AppColors.accent.withOpacity(0.6),
+                                  size: 16),
                             ),
-                                                        onSubmitted: (q) {
-                              if (q.trim().isNotEmpty) {
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) => AiSearchScreen(
-                                            initialQuery: q.trim())));
-                              }
-                            },
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )),
+                        ],
+                      ),
+                    )),
               ),
+              // ── Bismillah (BRIGHTER) ──
               SliverToBoxAdapter(
-                child: _fade(2, Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-                  child: _buildHadithCard(ds),
-                )),
+                child: _fade(
+                    0,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(
+                        '\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064E\u0647\u0650 \u0627\u0644\u0631\u0651\u064E\u062D\u0652\u0645\u0670\u0646\u0650 \u0627\u0644\u0631\u0651\u064E\u062D\u0650\u064A\u0652\u0645\u0650',
+                        textAlign: TextAlign.center,
+                        style: AppStyles.arabic(
+                            size: 20, color: AppColors.textSecondary),
+                      ),
+                    )),
               ),
+              // ── Galaxy Search Bar ──
               SliverToBoxAdapter(
-                child: _fade(3, Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-                  child: _buildPrayerTimes(ls),
-                )),
+                child: _fade(
+                    1,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
+                      child: _GalaxySearchBar(
+                        onSubmitted: (q) {
+                          if (q.trim().isNotEmpty) {
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => AiSearchScreen(
+                                        initialQuery: q.trim())));
+                          }
+                        },
+                      ),
+                    )),
+              ),
+              // ── Daily Hadith ──
+              SliverToBoxAdapter(
+                child: _fade(
+                    2,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                      child: _buildHadithCard(ds),
+                    )),
+              ),
+              // ── Prayer Times (auto-loaded) ──
+              SliverToBoxAdapter(
+                child: _fade(
+                    3,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                      child: _buildPrayerTimes(ls),
+                    )),
               ),
               SliverToBoxAdapter(
                 child: Padding(
@@ -150,8 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
                 sliver: SliverGrid(
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
                     childAspectRatio: 0.9,
                     crossAxisSpacing: 10,
@@ -180,7 +199,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── CACHED hadith — same text on expand/collapse ──
   Widget _buildHadithCard(DataService ds) {
     _cachedHadith ??= ds.getDailyHadith();
     final text = _cachedHadith!;
@@ -198,8 +216,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: AppColors.accent, size: 18),
               const SizedBox(width: 8),
               Text('Daily Hadith',
-                  style: AppStyles.heading(
-                      size: 14, color: AppColors.accent)),
+                  style: AppStyles.heading(size: 14, color: AppColors.accent)),
             ],
           ),
           const SizedBox(height: 12),
@@ -213,15 +230,12 @@ class _HomeScreenState extends State<HomeScreen> {
               maxLines: _hadithExpanded ? null : 3,
               overflow: _hadithExpanded ? null : TextOverflow.ellipsis,
               style: AppStyles.body(
-                  size: 13.5,
-                  color: AppColors.textSecondary,
-                  height: 1.8),
+                  size: 13.5, color: AppColors.textSecondary, height: 1.8),
             ),
           ),
           if (isLong)
             GestureDetector(
-              onTap: () =>
-                  setState(() => _hadithExpanded = !_hadithExpanded),
+              onTap: () => setState(() => _hadithExpanded = !_hadithExpanded),
               child: Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Icon(
@@ -238,12 +252,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── PRAYER TIMES — uses LocationService API ──
   Widget _buildPrayerTimes(LocationService ls) {
     final times = ls.prayerTimes.isNotEmpty
-        ? ls.prayerTimes.entries
-            .map((e) => (e.key, e.value))
-            .toList()
+        ? ls.prayerTimes.entries.map((e) => (e.key, e.value)).toList()
         : [
             ('Fajr', '--:--'),
             ('Sunrise', '--:--'),
@@ -258,7 +269,6 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // Location row
           GestureDetector(
             onTap: () => ls.detectLocation(),
             child: Row(
@@ -288,8 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Text(ls.error,
                         overflow: TextOverflow.ellipsis,
                         style: AppStyles.caption(
-                            size: 10,
-                            color: const Color(0xFFF87171))),
+                            size: 10, color: const Color(0xFFF87171))),
                   ),
                 ],
                 const SizedBox(width: 4),
@@ -306,8 +315,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: AppColors.accent, size: 15),
               const SizedBox(width: 6),
               Text('Prayer Times',
-                  style: AppStyles.heading(
-                      size: 13, color: AppColors.accent)),
+                  style: AppStyles.heading(size: 13, color: AppColors.accent)),
             ],
           ),
           const SizedBox(height: 14),
@@ -318,12 +326,10 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: times
                   .map((t) => Padding(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: Column(
                           children: [
-                            Text(t.$1,
-                                style: AppStyles.caption(size: 10)),
+                            Text(t.$1, style: AppStyles.caption(size: 10)),
                             const SizedBox(height: 4),
                             Text(t.$2,
                                 style: AppStyles.heading(
@@ -377,15 +383,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onTap(String key, String title) {
     final ds = context.read<DataService>();
-
     switch (key) {
       case 'favorites':
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => const FavoritesScreen()));
         break;
       case 'tasbeeh':
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const TasbeehScreen()));
+        Navigator.push(
+            context, MaterialPageRoute(builder: (_) => const TasbeehScreen()));
         break;
       case 'hadiths':
         Navigator.push(context,
@@ -396,12 +401,12 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(builder: (_) => const PreferencesScreen()));
         break;
       case 'calendar':
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const CalendarScreen()));
+        Navigator.push(
+            context, MaterialPageRoute(builder: (_) => const CalendarScreen()));
         break;
       case 'qibla':
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const QiblaScreen()));
+        Navigator.push(
+            context, MaterialPageRoute(builder: (_) => const QiblaScreen()));
         break;
       case 'quran_chapters':
         Navigator.push(
@@ -416,8 +421,7 @@ class _HomeScreenState extends State<HomeScreen> {
             context,
             MaterialPageRoute(
                 builder: (_) => CategoryListScreen(
-                    title: title,
-                    items: ds.getCategory('prayers', 'namaz'))));
+                    title: title, items: ds.getCategory('prayers', 'namaz'))));
         break;
       case 'duas':
         Navigator.push(
@@ -432,8 +436,7 @@ class _HomeScreenState extends State<HomeScreen> {
             context,
             MaterialPageRoute(
                 builder: (_) => CategoryListScreen(
-                    title: title,
-                    items: ds.getMergedItems(['ziyarat']))));
+                    title: title, items: ds.getMergedItems(['ziyarat']))));
         break;
       case 'amal':
         Navigator.push(
@@ -441,8 +444,7 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(
                 builder: (_) => CategoryListScreen(
                     title: title,
-                    items: ds.getMergedItems(
-                        ['amal', 'special_prayers']))));
+                    items: ds.getMergedItems(['amal', 'special_prayers']))));
         break;
       case 'munajaat':
         Navigator.push(
@@ -450,149 +452,107 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(
                 builder: (_) => CategoryListScreen(
                     title: title,
-                    items: ds.getMergedItems(
-                        ['munajaat', 'supplications']))));
+                    items: ds.getMergedItems(['munajaat', 'supplications']))));
         break;
     }
   }
+}
 
-  void _showSearchResults(List<SurahModel> results, String query) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.95,
-        minChildSize: 0.3,
-        builder: (ctx, scrollCtrl) {
-          return Container(
+// ═══════════════════════════════════════════
+//  GALAXY SEARCH BAR
+// ═══════════════════════════════════════════
+
+class _GalaxySearchBar extends StatefulWidget {
+  final ValueChanged<String>? onSubmitted;
+  const _GalaxySearchBar({this.onSubmitted});
+
+  @override
+  State<_GalaxySearchBar> createState() => _GalaxySearchBarState();
+}
+
+class _GalaxySearchBarState extends State<_GalaxySearchBar>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat(reverse: true);
+    _focusNode.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (ctx, _) {
+        final glow = _focusNode.hasFocus ? 0.25 : 0.06 + _ctrl.value * 0.09;
+
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.accent.withOpacity(glow),
+                blurRadius: 18,
+                spreadRadius: -2,
+              ),
+            ],
+          ),
+          child: Container(
             decoration: BoxDecoration(
-              color: AppColors.bg,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(24)),
-              border: Border.all(color: AppColors.glassBorder),
+              color: AppColors.glass,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _focusNode.hasFocus
+                    ? AppColors.accent.withOpacity(0.3)
+                    : AppColors.glassBorder,
+              ),
             ),
-            child: Column(
+            child: Row(
               children: [
-                Container(
-                  margin: const EdgeInsets.only(top: 12),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                      color: AppColors.textMuted,
-                      borderRadius: BorderRadius.circular(2)),
+                const SizedBox(width: 16),
+                Icon(Icons.search_rounded,
+                    color: AppColors.textMuted, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    focusNode: _focusNode,
+                    style: AppStyles.body(size: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Chat with Shia AI...',
+                      hintStyle: AppStyles.body(color: AppColors.textMuted),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onSubmitted: widget.onSubmitted,
+                  ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text('Results for "$query"',
-                      textAlign: TextAlign.center,
-                      style: AppStyles.heading(
-                          size: 16, color: AppColors.accent)),
-                ),
-                Expanded(
-                  child: results.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.search_off_rounded,
-                                  size: 48, color: AppColors.textMuted),
-                              const SizedBox(height: 12),
-                              Text('No results found',
-                                  style: AppStyles.body(
-                                      color: AppColors.textMuted)),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          controller: scrollCtrl,
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: results.length,
-                          itemBuilder: (ctx, i) {
-                            final item = results[i];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: GlassContainer(
-                                borderRadius: 14,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 18, vertical: 14),
-                                onTap: () {
-                                  Navigator.pop(ctx);
-                                  _openItem(item);
-                                },
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.accent
-                                            .withOpacity(0.08),
-                                        borderRadius:
-                                            BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        '${item.section} › ${item.category}',
-                                        style: AppStyles.caption(
-                                            size: 10,
-                                            color: AppColors.textMuted),
-                                      ),
-                                    ),
-                                    if (item.arabicName != null &&
-                                        item.arabicName!.isNotEmpty) ...[
-                                      const SizedBox(height: 6),
-                                      Text(item.arabicName!,
-                                          textAlign: TextAlign.center,
-                                          style: AppStyles.arabic(
-                                              size: 20,
-                                              color: AppColors.accent)),
-                                    ],
-                                    Text(item.englishTitle ?? item.title,
-                                        textAlign: TextAlign.center,
-                                        style: AppStyles.body(
-                                            size: 14,
-                                            weight: FontWeight.w600)),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                  padding: const EdgeInsets.only(right: 14),
+                  child: Icon(
+                    Icons.auto_awesome_rounded,
+                    color:
+                        AppColors.accent.withOpacity(0.4 + _ctrl.value * 0.4),
+                    size: 18,
+                  ),
                 ),
               ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
-  }
-
-  void _openItem(SurahModel item) {
-    final ds = context.read<DataService>();
-    if (item.category == 'quran_chapters') {
-      final qItem = ds.getItem('quranzikr', 'quran verses', item.id);
-      Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (_) => SurahDetailScreen(
-                  prayersItem: item, quranItem: qItem)));
-    } else if (item.category == 'quran verses') {
-      final pItem = ds.getItem('prayers', 'quran_chapters', item.id);
-      if (pItem != null) {
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) => SurahDetailScreen(
-                    prayersItem: pItem, quranItem: item)));
-      } else {
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => DetailScreen(item: item)));
-      }
-    } else {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => DetailScreen(item: item)));
-    }
   }
 }

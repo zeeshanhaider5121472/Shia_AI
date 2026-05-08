@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LocationService extends ChangeNotifier {
   double? latitude;
@@ -16,13 +17,30 @@ class LocationService extends ChangeNotifier {
 
   bool get hasLocation => latitude != null && longitude != null;
 
+  Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lat = prefs.getDouble('loc_lat');
+    final lng = prefs.getDouble('loc_lng');
+    if (lat != null && lng != null) {
+      latitude = lat;
+      longitude = lng;
+      cityName = prefs.getString('loc_city') ?? '';
+      final saved = prefs.getString('loc_prayer');
+      if (saved != null) {
+        prayerTimes =
+            Map<String, String>.from(json.decode(saved) as Map);
+      }
+      _calculateQibla();
+      notifyListeners();
+    }
+  }
+
   Future<void> detectLocation() async {
     loading = true;
     error = '';
     notifyListeners();
 
     try {
-      // ── Get coordinates ──
       LocationPermission perm;
       try {
         perm = await Geolocator.checkPermission();
@@ -55,14 +73,16 @@ class LocationService extends ChangeNotifier {
       latitude = pos.latitude;
       longitude = pos.longitude;
 
-      // ── Reverse geocode via Nominatim ──
       await _reverseGeocode();
-
-      // ── Prayer times via Aladhan (Shia method) ──
       await _fetchPrayerTimes();
-
-      // ── Qibla direction ──
       _calculateQibla();
+
+      // Save to cache
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('loc_lat', latitude!);
+      await prefs.setDouble('loc_lng', longitude!);
+      await prefs.setString('loc_city', cityName);
+      await prefs.setString('loc_prayer', json.encode(prayerTimes));
 
       loading = false;
       error = '';
@@ -117,7 +137,8 @@ class LocationService extends ChangeNotifier {
         'https://api.aladhan.com/v1/timings/$ts'
         '?latitude=$latitude&longitude=$longitude&method=0',
       );
-      final resp = await http.get(url).timeout(const Duration(seconds: 8));
+      final resp =
+          await http.get(url).timeout(const Duration(seconds: 8));
 
       if (resp.statusCode == 200) {
         final data = json.decode(resp.body);
@@ -137,7 +158,6 @@ class LocationService extends ChangeNotifier {
   }
 
   String _cleanTime(String raw) {
-    // Strip timezone like " (EET)" or " (+03:00)"
     return raw.replaceAll(RegExp(r'\s*$$.*$$'), '').trim();
   }
 
@@ -160,7 +180,6 @@ class LocationService extends ChangeNotifier {
     if (q < 0) q += 360;
     qiblaDirection = q;
 
-    // Haversine distance
     final dLat = lat2 - lat1;
     final a = sin(dLat / 2) * sin(dLat / 2) +
         cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
